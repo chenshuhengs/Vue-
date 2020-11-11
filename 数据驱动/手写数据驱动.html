@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <div id="app">
+      <p>{{name}}---{{message}}</p>
+      <div>
+        <p>{{name}}</p>
+        <p>{{message}}</p>
+      </div>
+    </div>
+  </body>
+  <script>
+    //步骤拆解
+    /*
+        1、拿到模板
+        2、拿到数据(data)
+        3、将数据与模板结合，得到 的是 HTML元素 (DOM元素)
+        4、放到页面中
+    */
+    let kuohao = /\{\{(.+?)\}\}/g;
+    //    1、拿到模板
+    let tep = document.getElementById("app");
+
+    // 创建data数据
+    let data = {
+      name: "我的是你爸爸",
+      message: "我打死你个狗日的",
+    };
+
+    // 将data数据放到模板中,一般使用递归
+    // 在这个案例中，template是 DOM 元素
+    // 在真正的Vue中 template 是 字符串，也就是vue将DOM元素转换成字符串模板 --> 抽象语法树 ---> 虚拟DOM ---> 真正的DOM
+    function compiler(template, data) {
+      let childNodes = template.childNodes; //取出子元素
+      for (let i = 0; i < childNodes.length; i++) {
+        let type = childNodes[i].nodeType; //节点类型 1：元素节点   0：文本节点
+        if (type === 3) {
+          // 文本节点，判断里面是否有{{}}插值
+          let txt = childNodes[i].nodeValue; //该属性只有文本节点才有意义
+
+          txt = txt.replace(kuohao, function (_, g) {
+            //replace使用正则匹配一次，函数就会被调用一次，函数的第一个参数表示匹配到的内容，第n个参数表示正则中的第n组
+            if (data[g.trim()]) return data[g.trim()];
+          });
+          // 注意:  txt 现在和 DOM 元素是没有关系
+          childNodes[i].nodeValue = txt;
+        } else if (type === 1) {
+          // 如果是元素节点就调用compiler函数递归
+          compiler(childNodes[i], data);
+        }
+      }
+    }
+
+    //利用模板生成一个需要被渲染的HTML标签
+    let newNode = tep.cloneNode(true); //方法可创建指定的节点的精确拷贝。这是DOM元素可以这么用
+    console.log(tep);
+    compiler(newNode, data);
+    console.log(newNode);
+    // 此时的newNode DOM元素中的内容已经被替换,将newNode替换temDOM元素
+    // 放到页面, parentNode : 返回元素父节点, replaceChild : 将某个子节点替换为另一个
+    app.parentNode.replaceChild(newNode, tep);
+
+    /*
+        上面的思路有很大的问题:
+        1、Vue使用虚拟DOM
+        2、只考虑了单属性{{name}},而Vue中大量的使用层级( {{obj.from.name}} ),没有变法进行链式调用
+        3、代码没有整合
+    */
+  </script>
+</html>

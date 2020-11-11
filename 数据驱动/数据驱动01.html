@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+  </head>
+  <body>
+    <!-- 第一步写一个模板 -->
+    <div id="app">
+      <p>{{name}}</p>
+      <p>{{message}}</p>
+    </div>
+    <script>
+      console.log(app); //<div id="app"> <p>{{name}}</p> <p>{{message}}</p> </div>
+
+      //第二步创建一个vue实例
+      let vue = new Vue({
+        el: "#app",
+        data() {
+          return {
+            name: "张三",
+            message: "我是一个男人",
+          };
+        },
+      });
+      console.log(app); //<div id="app"> <p>张三</p> <p>我是一个男人</p> </div>
+      //   第三步挂在：这种用法的挂在在vue.js中帮我们实现
+
+      /*
+      vue执行流程
+      1、获取模板：模板中有"坑"
+      2、利用vue构造函数中所提供的数据来"填坑"，得到可以在页面中显示的标签
+      3、将可以在页面中显示的标签替换掉页面中原有坑的标签
+      总结：vue利用我们提供的data数据和页面中模板生成了一个新的HTML标签(节点(node) 元素)，替换掉了页面中放置模板的位置
+    */
+    </script>
+  </body>
+</html>

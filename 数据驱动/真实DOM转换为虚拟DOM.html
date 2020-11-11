@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>真实DOM转换为虚拟DOM</title>
+  </head>
+  <body>
+    <div id="app" class="app1" title="app2">
+      <div>111</div>
+      <div>222</div>
+      <div>333</div>
+      <p>我是第一个p标签</p>
+      <p>我是第二个p标签</p>
+      <p>我是第三个p标签</p>
+      <ul>
+        <li><a href=""></a></li>
+        <li><a href=""></a></li>
+        <li><a href=""></a></li>
+      </ul>
+    </div>
+  </body>
+  <script>
+    // <div /> => { tag: 'div' }
+    // 文本节点 => { tag: undefined, value: '文本节点' }
+    // <div title="1" class="c" /> => { tag: 'div', data: { title: '1', class: 'c' } }
+    // <div><div /></div> => { tag: 'div', children: [ { tag: 'div' } ] }
+    class VNode {
+      constructor(tag, data, value, type) {
+        this.tag = tag && tag.toLowerCase();
+        this.data = data;
+        this.value = value;
+        this.type = type;
+        this.children = [];
+      }
+      appendChild(vnode) {
+        this.children.push(vnode);
+      }
+    }
+
+    /*
+        使用递归 来遍历 DOM 元素， 生成虚拟DOM
+        Vue中的源码使用的栈结构，使用栈存储，父元素来实现递归生成
+    */
+    function getVNode(node) {
+      let nodeType = node.nodeType; //获取节点类型
+      let _vnode = null;
+      if (nodeType === 1) {
+        //   元素标签名比如: DIV P UL....
+        let nodeName = node.nodeName;
+        //获得元素属性的集合,返回伪数组
+        let attrs = node.attributes;
+        let _attrObj = {};
+        for (let i = 0; i < attrs.length; i++) {
+          // attrs[i] 属性节点 (nodeType === 2)
+          //   将元素属性添加到 _attrObj对象中
+          _attrObj[attrs[i].nodeName] = attrs[i].nodeValue;
+        }
+        _vnode = new VNode(nodeName, _attrObj, undefined, nodeType);
+        // console.log(_vnode);
+        //如果node 还有子元素
+        let childNodes = node.childNodes;
+        for (let i = 0; i < childNodes.length; i++) {
+          _vnode.appendChild(getVNode(childNodes[i]));
+        }
+      } else if (nodeType === 3) {
+        _vnode = new VNode(undefined, undefined, node.nodeValue, nodeType);
+        // console.log(_vnode);
+      }
+      return _vnode;
+    }
+
+    let app = document.getElementById("app");
+    let vroot = getVNode(app);
+
+    // 将虚拟的DOM转换为真实的DOM
+    function parseVNode(vnode) {
+      // 创建 真实的 DOM
+      let type = vnode.type; //类型
+      let _node = null;
+      if (type === 3) {
+        return document.createTextNode(vnode.value);
+      } else if (type === 1) {
+        // Document.createElement() 方法用于创建一个由标签名称 tagName 指定的 HTML 元素
+        _node = document.createElement(vnode.tag);
+
+        // 设置指定元素上的某个属性值
+        let data = vnode.data;
+        Object.keys(data).forEach((key) => {
+          let attrName = key;
+          let attrValue = data[key];
+          _node.setAttribute(attrName, attrValue);
+        });
+
+        // 子元素 , vnode.children --> 虚拟DOM
+        let children = vnode.children;
+        children.forEach((subvnode) => {
+          _node.appendChild(parseVNode(subvnode));
+        });
+      }
+      return _node;
+    }
+    let dom2 = parseVNode(vroot);
+    console.log(dom2);
+  </script>
+</html>
