@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>函数科里化02.html</title>
+    <style>
+      #id {
+        color: red;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="c1">
+        <div title="tt1" id="id">{{ name }}</div>
+        <div title="tt2">{{ age }}</div>
+        <div title="tt3">{{ gender }}</div>
+        <ul>
+          <li>1</li>
+          <li>2</li>
+          <li>3</li>
+        </ul>
+        <p>123</p>
+        <div>{{dahong.from}}</div>
+      </div>
+    </div>
+  </body>
+  <script>
+    //   双括号匹配正则
+    let kuohao = /\{\{(.+?)\}\}/g;
+    //   虚拟DOM构造函数
+    class VNode {
+      constructor(tag, data, value, type) {
+        this.tag = tag && tag.toLowerCase();
+        this.data = data;
+        this.value = value;
+        this.type = type;
+        this.children = [];
+      }
+
+      appendChild(vnode) {
+        this.children.push(vnode);
+      }
+    }
+
+    // 生成虚拟DOM
+    function getVNode(templage) {
+      let nodeType = templage.nodeType;
+      let _vnode = null;
+      if (nodeType === 1) {
+        //元素节点
+        let nodeName = templage.nodeName;
+        let attrs = templage.attributes;
+        let _attrObj = {}; //将元素的属性保存到_attrObj中
+        for (let i = 0; i < attrs.length; i++) {
+          // attrs[i] (nodeType === 2) 属性节点
+          _attrObj[attrs[i].nodeName] = attrs[i].nodeVlue;
+        }
+        _vnode = new VNode(nodeName, _attrObj, undefined, nodeType);
+
+        // 考虑templage的子元素
+        let childNodes = templage.childNodes;
+        for (let i = 0; i < childNodes.length; i++) {
+          _vnode.appendChild(getVNode(childNodes[i])); //递归
+        }
+      } else if (nodeType === 3) {
+        //文本节点
+        _vnode = new VNode(undefined, undefined, templage.nodeValue, nodeType);
+      }
+      return _vnode;
+    }
+    /*
+        将带有 坑 的VNode 与数据data 结合，得到 填充的数据 VNode:模拟AST --> VNode
+        data: 是实例对象 NewVue 的 data 对象数据
+        ast:通过 getVNode 方法生成的抽象语法树(其实是虚拟DOM，只是用来 模拟 抽象语法树)
+        这个方法最后返回的是一个替换完data数据的虚拟dom
+    */
+    function combine(ast, data) {
+      let _tag = ast.tag;
+      let _data = ast.data;
+      let _value = ast.value;
+      let _type = ast.type;
+      let _children = ast.children; //存放的是template模板的抽象子元素，
+
+      let _vnode = null;
+      if (_type === 3) {
+        //文本节点
+        _value = _value.replace(kuohao, function (_, g) {
+          return getValueByPath(data, g.trim());
+        });
+        _vnode = new VNode(_tag, _data, _value, _type);
+      } else if (_type === 1) {
+        //元素节点
+        // tag, data, value, type
+        _vnode = new VNode(_tag, _data, _value, _type);
+        _children.forEach((_subvnode) => {
+          _vnode.appendChild(combine(_subvnode, data));
+        });
+      }
+      return _vnode;
+    }
+
+    // 实现NewVue中data数据的链式调用
+    function getValueByPath(newvue_data, path) {
+      let paths = path.split(".");
+      let res = newvue_data;
+      let prop;
+      while ((prop = paths.shift())) {
+        res = res[prop];
+      }
+      return res;
+    }
+
+    // 将虚拟DOM转换为真实DOM
+    function realDOM(tmp) {
+      let type = tmp.type;
+      let _node = null;
+      if (type === 3) {
+        return document.createTextNode(tmp.value);
+      } else if (type === 1) {
+        _node = document.createElement(tmp.tag);
+        let data = tmp.data;
+        Object.keys(data).forEach((key) => {
+          let attrName = key;
+          let attrValue = data[key];
+          _node.setAttribute(attrName, attrValue);
+        });
+        // 子元素 , vnode.children --> 虚拟DOM
+        let children = tmp.children;
+        children.forEach((subvnode) => {
+          _node.appendChild(realDOM(subvnode));
+        });
+      }
+      return _node;
+    }
+
+    function NewVue(options) {
+      // 判断配置信息的类型
+      if (typeof options === "object") {
+        this._data = options.data;
+        this._el = options.el;
+        this._template = document.querySelector(this._el); //在vue中模板是字符串，在这里是DOM
+
+        this.mount(); //挂载,将模板挂在到页面
+      }
+    }
+
+    NewVue.prototype.mount = function () {
+      // 提供 render 方法，用来生成 虚拟 DOM
+      this.render = this.createRenderFn();
+      this.mountComponent();
+    };
+
+    NewVue.prototype.mountComponent = function () {
+      // 此时 render 返回的 虚拟DOM 是已经替换 data 数据完成的
+      //   在vue中替换完成后接下来就交给watcher函数，在该函数内部调用updata函数来将虚拟DOM渲染到页面中,因为没有讲到watcher这里将用mount函数代替
+      let mount = () => {
+        this.updata(this.render());
+      };
+      mount.call(this);
+    };
+
+    //函数科里化
+    // 这里生成 render 函数， 目的是缓存 抽象语法树(我们使用 虚拟DOM 来模拟)，getVNode用来 生成 虚拟 DOM
+    NewVue.prototype.createRenderFn = function () {
+      let ast = getVNode(this._template);
+      return function render() {
+        //   将带有 坑的 VNode 转换为 带数据的 VNode
+        // 此时_tmp中的数据已经替换完成
+        let _tmp = combine(ast, this._data); //1121221
+
+        return _tmp;
+      };
+    };
+
+    // 将虚拟 DOM 渲染到页面中: diff 算法就在里
+    NewVue.prototype.updata = function (tmp) {
+      // 简化, 直接生成 HTML DOM replaceChild 到页面中
+      let dom = realDOM(tmp);
+      // 获取模板元素的父节点
+      this._parent = this._template.parentNode;
+      this._parent.replaceChild(dom, document.querySelector(this._el));
+    };
+
+    let newVue = new NewVue({
+      el: "#root",
+      data: {
+        name: "张三",
+        age: 14,
+        gender: "男",
+        dahong: {
+          gender: "女",
+          from: "陕西",
+        },
+      },
+    });
+  </script>
+</html>
