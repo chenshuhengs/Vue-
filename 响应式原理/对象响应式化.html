@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>对象响应式化</title>
+  </head>
+  <body></body>
+  <script>
+    let data = {
+      name: "张三",
+      age: 19,
+      course: [{ name: "语文" }, { name: "数学" }, { name: "英语" }],
+      obj: {
+        from: "上海",
+        student: "北京大学",
+      },
+    };
+
+    // 响应式数据
+    function defineReactive(target, key, value, enumerable) {
+      // 函数内部就是一个局部变量,这个 value 就只在函数内使用的变量( 闭包 )
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        !Array.isArray(value)
+      ) {
+        // 如果进入 if 语句 就证明 他不是一个数组 是一个普通的引用类型(对象)
+        responseData(value); //递归
+      }
+
+      Object.defineProperty(target, key, {
+        configurable: true,
+        enumerable: !!enumerable,
+        get() {
+          console.log(`读取 ${key} 属性`);
+          return value;
+        },
+        set(newVal) {
+          console.log(`设置 ${key} 属性为: ${newVal}`);
+          value = newVal;
+        },
+      });
+    }
+
+    //对象 o 响应式化
+    function responseData(obj) {
+      let keys = Object.keys(obj);
+      for (let i = 0; i < keys.length; i++) {
+        let key = keys[i]; //属性名
+        let value = obj[key]; //属性值:可能是数组
+
+        /*
+        判断这个属性是不是引用类型,判断是不是数组
+        如果取出的 value值 是一个引用类型(普通对象 / 数组),我们就需要递归,如果不是就不用递归
+        如果取出的 value 不是引用类型,就需要调用 defineReactive方法将其变成响应式数据
+        如果取出的 value 是引用类型,也需要调用defineReactive 将其变成响应式的
+        如果 value 是数组,就需要对内部元素进行循环,对内部元素进行响应式
+        */
+        if (Array.isArray(value)) {
+          for (let j = 0; j < value.length; j++) {
+            responseData(value[j]);
+          }
+        } else {
+          // 对象或值类型
+          defineReactive(obj, key, value, true);
+        }
+      }
+    }
+
+    responseData(data);
+  </script>
+</html>

@@ -154,11 +154,16 @@
 
     NewVue.prototype.mountComponent = function () {
       // 此时 render 返回的 虚拟DOM 是已经替换 data 数据完成的
-      //   在vue中替换完成后接下来就交给watcher函数，在该函数内部调用updata函数来将虚拟DOM渲染到页面中,因为没有讲到watcher这里将用mount函数代替
-      let mount = () => {
+      //   在vue中替换完成后接下来就交给watcher函数，在该函数内部调用updata函数来将虚拟DOM渲染到页面中,因为没有讲到watcher这里将用mount函数代替,箭头函数和普通函数this指向问题
+      // let mount = () => {
+      //   console.log(this);
+      //   this.updata(this.render());
+      // };
+      function mount() {
         this.updata(this.render());
-      };
+      }
       mount.call(this);
+      // mount.call(this);
     };
 
     //函数科里化
